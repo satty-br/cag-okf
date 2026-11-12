@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAG-OKF Studio 2.0 — Admin Dashboard & In-Memory Cache</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- Admin Layout Shell -->
+  <div class="admin-layout">
+
+    <!-- ==========================================
+         LEFT ADMIN SIDEBAR MENU
+         ========================================== -->
+    <aside class="admin-sidebar">
+      
+      <!-- Brand & Version -->
+      <div class="sidebar-brand">
+        <div class="brand-icon-box">⚡</div>
+        <div class="brand-info">
+          <div class="brand-title-text">CAG-OKF</div>
+          <div class="brand-subtitle-badge">Admin Studio 2.0</div>
+        </div>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="sidebar-menu">
+        <div class="menu-section-title">Navegação Principal</div>
+
+        <button id="nav-editor-btn" onclick="switchTab('editor')" class="nav-item active">
+          <span class="nav-icon">📝</span>
+          <span class="nav-text">Documentos & Regras</span>
+          <span id="sidebar-docs-badge" class="nav-badge">0</span>
+        </button>
+
+        <button id="nav-playground-btn" onclick="switchTab('playground')" class="nav-item">
+          <span class="nav-icon">🚀</span>
+          <span class="nav-text">CAG Playground</span>
+        </button>
+
+        <button id="nav-stats-btn" onclick="switchTab('stats')" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Telemetria RAM</span>
+        </button>
+
+        <button id="nav-integration-btn" onclick="switchTab('integration')" class="nav-item">
+          <span class="nav-icon">🔌</span>
+          <span class="nav-text">Endpoints & MCP</span>
+        </button>
+      </nav>
+
+      <!-- Quick Action: Nova Regra -->
+      <div class="sidebar-action-box">
+        <button onclick="createNewDocument()" class="btn btn-success btn-full">
+          + Nova Regra
+        </button>
+      </div>
+
+      <!-- Pinned Footer: Live Cache Status Widget -->
+      <div class="sidebar-footer">
+        <div class="cache-status-widget">
+          <div class="cache-status-row">
+            <div id="cache-dot-wrapper" class="status-dot-indicator">
+              <span class="status-dot"></span>
+              <span id="sidebar-cache-status">KV Cache Sincronizado</span>
+            </div>
+          </div>
+
+          <div class="cache-stats-row">
+            <span>Tokens: <strong id="sidebar-tokens" style="color: #818cf8;">0</strong></span>
+            <span>Docs: <strong id="sidebar-docs" style="color: #38bdf8;">0</strong></span>
+          </div>
+
+          <button onclick="rebuildKVCache()" id="rebuild-btn" class="btn btn-primary btn-full" style="padding: 5px 10px; font-size: 11px; margin-top: 2px;">
+            ⚡ Recompilar Cache
+          </button>
+        </div>
+
+        <div style="font-size: 10px; color: var(--text-dim); text-align: center; font-family: var(--font-mono);">
+          SmolLM2-135M • Cache O(1)
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ==========================================
+         MAIN CONTENT WRAPPER (Right of Sidebar)
+         ========================================== -->
+    <div class="main-wrapper">
+
+      <!-- Top Header / Breadcrumb Bar -->
+      <header class="top-header">
+        <div class="breadcrumb-area">
+          <span class="breadcrumb-parent">CAG-OKF Admin</span>
+          <span class="breadcrumb-separator">/</span>
+          <span id="breadcrumb-title" class="breadcrumb-current">Documentos & Regras Arquiteturais</span>
+        </div>
+
+        <div class="top-header-actions">
+          <div class="chip-telemetry">
+            Latência Leitura: <strong style="color: #34d399;">O(1) sub-µs</strong>
+          </div>
+          <div class="chip-telemetry">
+            Hit Ratio: <strong id="header-hit-ratio" style="color: #38bdf8;">100%</strong>
+          </div>
+        </div>
+      </header>
+
+      <!-- Viewports -->
+      <div class="viewport-container">
+
+        <!-- ==========================================
+             VIEW 1: DOCUMENT EDITOR
+             ========================================== -->
+        <div id="tab-editor" class="tab-pane">
+          
+          <!-- Document Catalog (Inner Sub-Sidebar) -->
+          <aside class="doc-catalog-sidebar">
+            <div class="catalog-search-area">
+              <input 
+                type="text" 
+                id="doc-search" 
+                placeholder="Buscar regras, tags, serviços..." 
+                oninput="filterDocumentList()"
+                class="search-input"
+              />
+              <div class="filter-pills-row">
+                <button onclick="setStatusFilter('ALL')" class="filter-btn active" data-status="ALL">Todos</button>
+                <button onclick="setStatusFilter('APPROVED')" class="filter-btn" data-status="APPROVED">Ativos</button>
+                <button onclick="setStatusFilter('DRAFT')" class="filter-btn" data-status="DRAFT">Draft</button>
+                <button onclick="setStatusFilter('DEPRECATED')" class="filter-btn" data-status="DEPRECATED">Deprec</button>
+              </div>
+            </div>
+
+            <div id="document-list" class="document-list">
+              <div style="padding: 30px 15px; text-align: center; color: var(--text-dim); font-size: 11px;">
+                Carregando documentos da memória RAM...
+              </div>
+            </div>
+          </aside>
+
+          <!-- Main Editor Workspace -->
+          <section class="editor-workspace">
+            
+            <!-- Editor Top Action Bar -->
+            <div class="editor-top-bar">
+              <div class="editor-title-container">
+                <span id="current-doc-badge" class="doc-badge-pill">WIKI-RULE-001</span>
+                <input 
+                  type="text" 
+                  id="editor-title" 
+                  class="title-input"
+                  placeholder="Digite o título da regra corporativa..."
+                />
+              </div>
+
+              <div class="editor-actions">
+                <div class="view-mode-toggle">
+                  <button id="mode-visual-btn" onclick="setEditorMode('visual')" class="view-btn active">
+                    Visual Form
+                  </button>
+                  <button id="mode-raw-btn" onclick="setEditorMode('raw')" class="view-btn">
+                    Raw YAML + MD
+                  </button>
+                </div>
+
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer; user-select: none;">
+                  <input type="checkbox" id="persist-disk-chk" checked />
+                  <span>Salvar em disco (.md)</span>
+                </label>
+
+                <button onclick="saveCurrentDocument()" class="btn btn-primary">
+                  💾 Salvar na Memória
+                </button>
+
+                <button onclick="deleteCurrentDocument()" class="btn btn-danger">
+                  🗑️ Excluir
+                </button>
+              </div>
+            </div>
+
+            <!-- Visual Form Editor Area -->
+            <div id="visual-editor-container" class="editor-body-area">
+              
+              <!-- Frontmatter Form Card -->
+              <div class="frontmatter-card">
+                <div class="form-group">
+                  <label class="form-label">Identificador Único (ID)</label>
+                  <input type="text" id="doc-id-input" class="custom-input" placeholder="WIKI-RULE-XXX" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tipo de Documento</label>
+                  <select id="doc-type-input" class="custom-select">
+                    <option value="rule">rule (Regra Arquitetural)</option>
+                    <option value="concept">concept (Conceito Geral)</option>
+                    <option value="playbook">playbook (Playbook SecOps)</option>
+                    <option value="standard">standard (Padrão Corporativo)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Status de Governança</label>
+                  <select id="doc-status-input" class="custom-select">
+                    <option value="APPROVED">APPROVED (Aprovado)</option>
+                    <option value="DRAFT">DRAFT (Rascunho)</option>
+                    <option value="DEPRECATED">DEPRECATED (Obsoleto)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Data de Expiração (Waiver)</label>
+                  <input type="date" id="doc-valid-until-input" class="custom-input" />
+                </div>
+
+                <div class="form-group col-span-2">
+                  <label class="form-label">Serviços Alvo (Tags de Escopo)</label>
+                  <input type="text" id="doc-services-input" class="custom-input" placeholder="pagamentos-service, checkout-api" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Linguagens Alvo</label>
+                  <input type="text" id="doc-languages-input" class="custom-input" placeholder="golang, python, typescript" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tags Indexadas</label>
+                  <input type="text" id="doc-tags-input" class="custom-input" placeholder="database, postgres, vault" />
+                </div>
+              </div>
+
+              <!-- Split Markdown Editor & Live Preview -->
+              <div class="split-pane">
+                <div class="pane-column">
+                  <div class="pane-header">
+                    <span>Corpo do Documento (Markdown)</span>
+                    <span id="doc-token-badge" style="color: #818cf8; font-family: var(--font-mono); font-weight: 600;">0 tokens</span>
+                  </div>
+                  <textarea 
+                    id="doc-body-input" 
+                    class="markdown-textarea"
+                    placeholder="# Escreva a especificação técnica da regra aqui...&#10;&#10;Use Markdown para descrever procedimentos, parâmetros e requisitos."
+                  ></textarea>
+                </div>
+
+                <div class="pane-column">
+                  <div class="pane-header">
+                    <span>Visualização Renderizada</span>
+                    <span style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;">Live Preview</span>
+                  </div>
+                  <div id="markdown-preview" class="markdown-preview-pane"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Raw Full Document Mode -->
+            <div id="raw-editor-container" class="raw-editor-container hidden">
+              <div class="pane-column" style="height: 100%;">
+                <div class="pane-header">
+                  <span>Arquivo OKF Completo (YAML Frontmatter + Markdown)</span>
+                </div>
+                <textarea 
+                  id="raw-content-input" 
+                  class="raw-textarea"
+                  placeholder="---&#10;id: WIKI-RULE-001&#10;type: rule&#10;title: Exemplo&#10;---&#10;&#10;# Corpo da regra..."
+                ></textarea>
+              </div>
+            </div>
+
+          </section>
+        </div>
+
+        <!-- ==========================================
+             VIEW 2: CAG PLAYGROUND
+             ========================================== -->
+        <div id="tab-playground" class="tab-pane dashboard-view-container hidden">
+          <div class="dashboard-view-content">
+            
+            <div>
+              <div class="view-header-title">🚀 CAG Playground (Inferência em Memória RAM)</div>
+              <div class="view-header-desc">
+                O modelo executa sobre tensores de Key-Value cache pré-compilados em RAM com 97%+ de economia computacional.
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px;">
+                Consultas Sugeridas:
+              </div>
+              <div class="preset-queries-row">
+                <button onclick="setPlaygroundQuery('Posso usar conexões diretas sql.Open em Go?')" class="preset-chip">
+                  💡 "Posso usar sql.Open em Go?"
+                </button>
+                <button onclick="setPlaygroundQuery('Qual pacote interno corporativo gerencia o pool de banco?')" class="preset-chip">
+                  📦 "Qual biblioteca gerencia pool de banco?"
+                </button>
+                <button onclick="setPlaygroundQuery('Qual o limite de conexões aprovado para o billing-worker?')" class="preset-chip">
+                  ⚙️ "Limite de conexões do billing-worker"
+                </button>
+                <button onclick="setPlaygroundQuery('Quais são as regras de rate limiting para rotas públicas?')" class="preset-chip">
+                  🛡️ "Regras de rate limit para rotas públicas"
+                </button>
+              </div>
+            </div>
+
+            <div class="query-card">
+              <textarea 
+                id="playground-query" 
+                class="query-textarea"
+                placeholder="Digite sua dúvida técnica ou cole trecho de código para verificação arquitetural..."
+              ></textarea>
+
+              <div class="query-controls">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted);">
+                  <span>Tokens Máximos de Saída:</span>
+                  <input type="number" id="playground-max-tokens" value="40" min="10" max="150" class="custom-input" style="width: 70px; text-align: center;" />
+                </label>
+
+                <div style="display: flex; gap: 10px;">
+                  <button onclick="runBenchmarkQuery()" id="bench-run-btn" class="btn btn-secondary">
+                    ⚖️ Benchmark Comparativo
+                  </button>
+                  <button onclick="runPlaygroundQuery()" id="query-run-btn" class="btn btn-primary">
+                    ⚡ Executar com CAG
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Output & Performance KPIs -->
+            <div id="playground-output-container" class="hidden" style="flex-direction: column; gap: 16px;">
+              <div class="kpi-row">
+                <div class="kpi-card">
+                  <span class="kpi-label">Tokens de Prefill</span>
+                  <span class="kpi-value indigo" id="kpi-prefill-tokens">17</span>
+                  <span class="kpi-sub" id="kpi-total-context">de 658 tokens</span>
+                </div>
+                <div class="kpi-card">
+                  <span class="kpi-label">Economia Computacional</span>
+                  <span class="kpi-value emerald" id="kpi-savings">97.4%</span>
+                  <span class="kpi-sub" style="color: #059669;">poupança de prefill</span>
+                </div>
+                <div class="kpi-card">
+                  <span class="kpi-label">Latência Total</span>
+                  <span class="kpi-value cyan" id="kpi-latency">1.12s</span>
+                  <span class="kpi-sub">execução da resposta</span>
+                </div>
+                <div class="kpi-card">
+                  <span class="kpi-label">Taxa de Geração</span>
+                  <span class="kpi-value purple" id="kpi-throughput">22.4</span>
+                  <span class="kpi-sub">tokens por segundo</span>
+                </div>
+              </div>
+
+              <div class="answer-card">
+                <div class="answer-header">⚡ Resposta da IA (Cache Ativo em RAM):</div>
+                <div id="playground-answer" class="answer-body"></div>
+              </div>
+
+              <div id="benchmark-comparison-box" class="hidden" style="background-color: var(--bg-card); border: 1px solid var(--border-card); border-radius: 8px; padding: 18px;">
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #ffffff; margin-bottom: 12px;">
+                  Resultado Comparativo do Benchmark:
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <div style="padding: 14px; background: rgba(244, 63, 94, 0.06); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 6px;">
+                    <div style="font-weight: 700; color: #fb7185; margin-bottom: 6px; font-size: 12px;">Zero-Cache Baseline</div>
+                    <div style="margin-bottom: 3px;">Tokens Prefill: <strong id="bench-base-tokens" style="font-family: var(--font-mono);">658</strong></div>
+                    <div>Latência: <strong id="bench-base-time" style="font-family: var(--font-mono);">1.63s</strong></div>
+                  </div>
+                  <div style="padding: 14px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px;">
+                    <div style="font-weight: 700; color: #34d399; margin-bottom: 6px; font-size: 12px;">OKF-CAG em Memória</div>
+                    <div style="margin-bottom: 3px;">Tokens Prefill: <strong id="bench-cag-tokens" style="font-family: var(--font-mono);">17</strong></div>
+                    <div>Latência: <strong id="bench-cag-time" style="font-family: var(--font-mono);">1.12s</strong></div>
+                    <div style="color: #34d399; font-weight: 700; margin-top: 6px;">⚡ Economia: <span id="bench-cag-savings">97.4%</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 3: TELEMETRIA RAM
+             ========================================== -->
+        <div id="tab-stats" class="tab-pane dashboard-view-container hidden">
+          <div class="dashboard-view-content">
+            <div>
+              <div class="view-header-title">📊 Telemetria do Cache em Memória RAM</div>
+              <div class="view-header-desc">Métricas em tempo real de latência O(1), taxa de hits e alocação de tensores.</div>
+            </div>
+
+            <div class="telemetry-grid" id="stats-grid"></div>
+
+            <div class="telemetry-card" style="border-top-color: var(--accent-cyan); margin-top: 6px;">
+              <div style="font-weight: 700; color: #ffffff; margin-bottom: 14px; font-size: 13px;">
+                Índices Invertidos Residentes em RAM
+              </div>
+              <div id="indexed-services-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 4: ENDPOINTS & MCP INTEGRATION
+             ========================================== -->
+        <div id="tab-integration" class="tab-pane dashboard-view-container hidden">
+          <div class="dashboard-view-content">
+            <div>
+              <div class="view-header-title">🔌 Endpoints de Integração & Model Context Protocol</div>
+              <div class="view-header-desc">Conecte Cursor, Claude Desktop, LangChain, agentes autônomos ou ferramentas CLI.</div>
+            </div>
+
+            <!-- API Endpoints List -->
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              
+              <div class="api-card">
+                <div class="api-card-header">
+                  <div>
+                    <span class="api-badge post">POST</span>
+                    <strong style="margin-left: 8px; color: #ffffff; font-family: var(--font-mono);">/v1/context</strong>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-dim);">Injeção Direta de Prompt (Zero Overhead)</span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted);">
+                  Retorna o contexto prefixado filtrado pelos serviços ou tags requisitados pela IA.
+                </div>
+                <pre class="api-code-block">curl -X POST http://127.0.0.1:8000/v1/context \
+  -H "Content-Type: application/json" \
+  -d '{"target_services": ["pagamentos-service"], "user_query": "Qual lib de banco?"}'</pre>
+              </div>
+
+              <div class="api-card">
+                <div class="api-card-header">
+                  <div>
+                    <span class="api-badge post">POST</span>
+                    <strong style="margin-left: 8px; color: #ffffff; font-family: var(--font-mono);">/v1/chat/completions</strong>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-dim);">Compatível com OpenAI API</span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted);">
+                  Permite apontar o Cursor, Continue.dev ou SDKs OpenAI diretamente para o servidor CAG-OKF.
+                </div>
+                <pre class="api-code-block">curl -X POST http://127.0.0.1:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Quais as regras do Redis?"}]}'</pre>
+              </div>
+
+              <div class="api-card">
+                <div class="api-card-header">
+                  <div>
+                    <span class="api-badge post">POST</span>
+                    <strong style="margin-left: 8px; color: #ffffff; font-family: var(--font-mono);">/v1/documents/{doc_id}/append</strong>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-dim);">Mutação Autônoma para IAs</span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted);">
+                  Permite que agentes anexem exceções temporárias ou notas de conformidade sem corromper o documento original.
+                </div>
+                <pre class="api-code-block">curl -X POST http://127.0.0.1:8000/v1/documents/WIKI-RULE-001/append \
+  -H "Content-Type: application/json" \
+  -d '{"section_title": "Waiver Incidente #402", "content": "Aprovado bypass temporário.", "author": "SecOps"}'</pre>
+              </div>
+
+              <div class="api-card">
+                <div class="api-card-header">
+                  <div>
+                    <span class="api-badge put" style="background-color:rgba(168,85,247,0.15); color:#c084fc;">CONFIG</span>
+                    <strong style="margin-left: 8px; color: #ffffff; font-family: var(--font-mono);">mcp.toml (Model Context Protocol)</strong>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-dim);">Configuração para Zed, Cursor & Claude CLI</span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted);">
+                  Copie para o seu arquivo de configuração MCP local para habilitar as ferramentas do servidor.
+                </div>
+                <pre class="api-code-block">[mcp_servers.cag_okf]
+command = "python"
+args = ["cag-okf/mcp_server.py"]
+
+[mcp_servers.cag_okf.env]
+PYTHONUNBUFFERED = "1"</pre>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast-popup">
+    <span id="toast-icon">ℹ️</span>
+    <span id="toast-message">Mensagem</span>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Arquivo de Configuração do MCP Server em formato TOML
+# Compatível com Zed Editor, Claude CLI, Codex e clientes MCP baseados em TOML
+
+[mcp_servers.cag-okf]
+command = "python"
+args = [
+    "C:/satty/Zeph/cag-okf/mcp_server.py"
+]
+
+[mcp_servers.cag-okf.env]
+PYTHONUNBUFFERED = "1"
+CAG_OKF_SERVER_URL = "http://127.0.0.1:8000"
+
+[mcp_servers.cag-okf.metadata]
+name = "CAG-OKF Knowledge & In-Memory Cache Engine"
+description = "Motor de regras OKF e cache Key-Value em memória RAM com zero prefill de tokens"
+version = "0.2.0"
+
+# Ferramentas disponíveis no servidor MCP:
+# - okf_search_rules: Busca inteligente de regras por palavras-chave, serviço alvo ou tags
+# - okf_get_rule: Recupera a regra completa, especificações e exceções por ID (ex: WIKI-RULE-001)
+# - okf_get_context_for_target: Monta o bloco de contexto para prompt injection
+# - okf_ask_knowledge_base: Consulta o Key-Value DynamicCache diretamente com 97%+ de economia
+# - okf_create_or_update_rule: Cria ou atualiza regras no cache e em disco
+# - okf_append_rule_exception: Anexa novas exceções aprovadas a regras existentes
+# - okf_delete_rule: Exclui regras obsoletas
