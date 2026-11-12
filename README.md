@@ -38,6 +38,32 @@ Resultados obtidos em ambiente de teste comparando **Zero-Cache Baseline** vs. *
 
 ---
 
+## 🖥️ Interface Visual — CAG-OKF Admin Studio 2.0
+
+O **CAG-OKF** possui uma interface completa no padrão **Admin Dashboard** (estilo Supabase, Linear e Datadog), 100% autônoma, auto-hospedada e sem dependências de CDNs externos:
+
+### 1. Base de Conhecimento & Editor de Regras
+> Painel master-detail com catálogo de documentos residentes na memória RAM, busca instantânea, filtros facetados de governança (`Todos`, `Ativos`, `Draft`, `Deprec`), formulário visual de metadados OKF e editor split com live preview de Markdown e contagem de tokens pré-calculados em tempo real.
+
+![Base de Conhecimento & Editor OKF](docs/images/01_document_editor.png)
+
+### 2. CAG Playground (Inferência em Memória)
+> Ambiente de teste interativo do modelo com o Key-Value cache pré-compilado ativo em RAM. Permite avaliar consultas com **98% de economia computacional de prefill** e verificar os tokens exatos processados vs. o total do contexto.
+
+![CAG Playground](docs/images/02_cag_playground.png)
+
+### 3. Telemetria do Cache em RAM
+> Monitoramento ao vivo da infraestrutura de cache $O(1)$: contagem de documentos, tensores Key-Value compilados, hit ratio de 100%, tempo de forward pass, consumo de memória e nuvem de tags e serviços indexados.
+
+![Telemetria de Cache em RAM](docs/images/03_telemetry_ram.png)
+
+### 4. Endpoints de Integração & Model Context Protocol (MCP)
+> Central de documentação com exemplos prontos de `curl`, rotas REST (`/v1/context`, `/v1/chat/completions`, mutação autônoma via `/append`) e bloco de configuração `mcp.toml` para conexão imediata com Cursor, Claude Desktop e agentes de CI/CD.
+
+![Endpoints & MCP Integration](docs/images/04_endpoints_mcp.png)
+
+---
+
 ## 🏗️ Arquitetura do Sistema
 
 ```mermaid
