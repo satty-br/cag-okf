@@ -4,7 +4,7 @@
 [mcp_servers.cag-okf]
 command = "python"
 args = [
-    "C:/satty/Zeph/cag-okf/mcp_server.py"
+    "mcp_server.py"
 ]
 
 [mcp_servers.cag-okf.env]

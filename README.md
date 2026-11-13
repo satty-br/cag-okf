@@ -215,7 +215,7 @@ Adicione ao seu arquivo de configuração (ex: `cursor-settings.json` ou `claude
   "mcpServers": {
     "cag-okf": {
       "command": "python",
-      "args": ["C:/satty/Zeph/cag-okf/mcp_server.py"]
+      "args": ["mcp_server.py"]
     }
   }
 }
